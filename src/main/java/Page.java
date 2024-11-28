@@ -1,5 +1,4 @@
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
 
 public class Page {
@@ -7,9 +6,9 @@ public class Page {
     private final boolean isLeaf;
     private int numberOfKeys;
 
-    private final ArrayList<Integer> keys;
-    private final ArrayList<Integer> recordIndexes;
-    private final ArrayList<Integer> childOffsets;
+    final ArrayList<Integer> keys;
+    final ArrayList<Integer> recordIndexes;
+    final ArrayList<Integer> childOffsets;
 
 
     public Page(int size, boolean isLeaf) {
@@ -40,7 +39,7 @@ public class Page {
         return isLeaf;
     }
 
-    public void addValue(int key, int index, Integer offset) {
+    public void addValue(Integer offset, int key, int index) {
         if (numberOfKeys == size) {
             System.out.println("Page is full, key " + key + " cannot be added");
             return;
@@ -93,6 +92,54 @@ public class Page {
             throw new RuntimeException(e);
         }
     }
+
+    public void readPage(String path, int offset) throws FileNotFoundException {
+        File file = new File(path);
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            int currentLine = 0;
+
+            // Navigate to the line at the specified offset
+            while ((line = reader.readLine()) != null) {
+                if (currentLine == offset) {
+                    // Parse the line and populate the Page object
+                    String[] parts = line.trim().split("\\s+");
+
+                    // The first value is whether the page is a leaf (1 = true, 0 = false)
+                    boolean leaf = parts[0].equals("1");
+
+                    // The second value is the number of keys
+                    int numKeys = Integer.parseInt(parts[1]);
+                    this.numberOfKeys = numKeys;
+
+                    // Read the keys, record indexes, and child offsets
+                    int partIndex = 2;
+                    for (int i = 0; i < numKeys; i++) {
+                        // Read child offset
+                        int childOffset = Integer.parseInt(parts[partIndex++]);
+                        this.childOffsets.set(i, childOffset == 0 ? null : childOffset);
+
+                        // Read key
+                        this.keys.set(i, Integer.parseInt(parts[partIndex++]));
+
+                        // Read record index
+                        this.recordIndexes.set(i, Integer.parseInt(parts[partIndex++]));
+                    }
+                    break;
+                }
+                currentLine++;
+            }
+
+            // If we reach the end of the file without finding the offset, throw an exception
+            if (line == null) {
+                throw new IllegalArgumentException("Offset " + offset + " is out of range");
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
     @Override
     public String toString() {
