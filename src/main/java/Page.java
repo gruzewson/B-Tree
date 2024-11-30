@@ -1,9 +1,12 @@
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 
 public class Page {
     private final int size; //how many keys can be stored in the page
-    private final boolean isLeaf;
+    private boolean isLeaf;
     private int numberOfKeys;
 
     final ArrayList<Integer> keys;
@@ -23,8 +26,9 @@ public class Page {
         for (int i = 0; i < size; i++) {
             keys.add(null);
             recordIndexes.add(null);
-            childOffsets.add(null);
         }
+        for(int i = 0; i < size + 1; i++)
+            childOffsets.add(null);
     }
 
     public int getSize() {
@@ -40,10 +44,10 @@ public class Page {
     }
 
     public void addValue(Integer offset, int key, int index) {
-        if (numberOfKeys == size) {
-            System.out.println("Page is full, key " + key + " cannot be added");
+        /*if (numberOfKeys == size) {
+            System.out.println("Page is full, key " + key + " cannot be added" + " offset: " + offset);
             return;
-        }
+        }*/
         //check if key is already in the page
         for (int i = 0; i < numberOfKeys; i++) {
             if (keys.get(i) == key) {
@@ -56,6 +60,7 @@ public class Page {
         while (i < numberOfKeys && keys.get(i) < key) {
             i++;
         }
+        System.out.println("Inserting key " + key + " at index " + i);
         //shift keys, recordIndexes and childOffsets to the right
         for (int j = numberOfKeys - 1; j >= i; j--) {
             keys.set(j + 1, keys.get(j));
@@ -86,6 +91,12 @@ public class Page {
                 sb.append(keys.get(i)).append(" ");
                 sb.append(recordIndexes.get(i)).append(" ");
             }
+            if(childOffsets.get(numberOfKeys) == null) {
+                sb.append("0").append(" ");
+            }
+            else {
+                sb.append(childOffsets.get(numberOfKeys)).append(" ");
+            }
             sb.append("\n");
             writer.write(sb.toString());
         } catch (IOException e) {
@@ -107,7 +118,8 @@ public class Page {
                     String[] parts = line.trim().split("\\s+");
 
                     // The first value is whether the page is a leaf (1 = true, 0 = false)
-                    boolean leaf = parts[0].equals("1");
+                    isLeaf = parts[0].equals("1");
+
 
                     // The second value is the number of keys
                     int numKeys = Integer.parseInt(parts[1]);
@@ -126,6 +138,8 @@ public class Page {
                         // Read record index
                         this.recordIndexes.set(i, Integer.parseInt(parts[partIndex++]));
                     }
+                    int childOffset = Integer.parseInt(parts[partIndex++]);
+                    this.childOffsets.set(numKeys, childOffset == 0 ? null : childOffset);
                     break;
                 }
                 currentLine++;
@@ -140,6 +154,53 @@ public class Page {
         }
     }
 
+    public void updatePage(int offset, String path) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(isLeaf ? "1" : "0").append(" ");
+        sb.append(getNumberOfKeys()).append(" ");
+
+        // Append the page data
+        for (int i = 0; i < getNumberOfKeys(); i++) {
+            sb.append(childOffsets.get(i) == null ? "0" : childOffsets.get(i)).append(" ");
+            sb.append(keys.get(i)).append(" ");
+            sb.append(recordIndexes.get(i)).append(" ");
+        }
+        sb.append(childOffsets.get(getNumberOfKeys()) == null ? "0" : childOffsets.get(getNumberOfKeys())).append(" ");
+
+        String updatedPage = sb.toString();
+        try {
+            // Open the file and overwrite the specific page
+            File tempFile = new File("src/main/java/btree_temp.txt");
+
+            try (BufferedReader reader = new BufferedReader(new FileReader(path));
+                 BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile))) {
+
+                String line;
+                int currentLine = 0;
+
+                // Read the file line by line
+                while ((line = reader.readLine()) != null) {
+                    if (currentLine == offset) {
+                        // Update the line at the given offset
+                        writer.write(updatedPage);
+                    } else {
+                        // Write other lines as is
+                        writer.write(line);
+                    }
+                    writer.newLine();
+                    currentLine++;
+                }
+            }
+
+            // Replace the original file with the temporary file
+            Files.move(tempFile.toPath(), Paths.get(path), StandardCopyOption.REPLACE_EXISTING);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error while updating the page", e);
+        }
+    }
+
 
     @Override
     public String toString() {
@@ -151,4 +212,7 @@ public class Page {
         return sb.toString();
     }
 
+    public void setNumberOfKeys(int i) {
+        this.numberOfKeys = i;
+    }
 }
