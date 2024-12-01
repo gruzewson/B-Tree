@@ -26,6 +26,7 @@ public class Main {
         page3.savePage();
 
         BTree bTree = new BTree();
-        bTree.insert(7, 23);
+        bTree.search(15, 0, true);
+        //bTree.insert(7, 23);
     }
 }

@@ -39,8 +39,16 @@ public class Page {
         return numberOfKeys;
     }
 
+    public void setNumberOfKeys(int number) {
+        this.numberOfKeys = number;
+    }
+
     public boolean isLeaf() {
         return isLeaf;
+    }
+
+    public void setLeaf(boolean leaf) {
+        isLeaf = leaf;
     }
 
     public void addValue(Integer offset, int key, int index) {
@@ -212,7 +220,4 @@ public class Page {
         return sb.toString();
     }
 
-    public void setNumberOfKeys(int i) {
-        this.numberOfKeys = i;
-    }
 }
