@@ -13,7 +13,7 @@ public class BTree {
     public BTree() throws FileNotFoundException {
         this.h = 0;
         Page root = new Page(size, true);
-        root.savePage();
+        root.savePage(path);
         this.root = root;
     }
 
@@ -73,23 +73,24 @@ public class BTree {
         page.keys.set(i, child.keys.get(size)); //todo t
         page.recordIndexes.set(i, child.recordIndexes.get(size)); //todo t
         page.setNumberOfKeys(page.getNumberOfKeys() + 1);
-        child.savePage();
-        newPage.savePage();
-        page.savePage();
+        child.savePage(path);
+        newPage.savePage(path);
+        page.savePage(path);
     }
 
     public void insertNonFull(Page page, int key, int index) throws FileNotFoundException {
         int i = page.getNumberOfKeys();
         if (page.isLeaf()) {
-            while (i >= 1 && key < page.keys.get(i)) {
-                page.keys.set(i + 1, page.keys.get(i));
-                page.recordIndexes.set(i + 1, page.recordIndexes.get(i));
+            while (i > 0 && key < page.keys.get(i - 1)) {
+                page.keys.set(i, page.keys.get(i - 1));
+                page.recordIndexes.set(i, page.recordIndexes.get(i - 1));
                 i--;
             }
-            page.keys.set(i + 1, key);
-            page.recordIndexes.set(i + 1, index);
+            page.keys.set(i, key);
+            page.recordIndexes.set(i, index);
             page.setNumberOfKeys(page.getNumberOfKeys() + 1);
-            page.savePage();
+            page.savePage(path);
+
         } else {
             while (i >= 1 && key < page.keys.get(i)) {
                 i--;
@@ -112,7 +113,7 @@ public class BTree {
         root.readPage(path, 0);
         if(root.getNumberOfKeys() == size) { //todo 2t-1
             Page newRoot = new Page(size, false);
-            newRoot.childOffsets.set(1, 0); //todo offsets hav to be right...
+            newRoot.childOffsets.set(0, root.getOffset()); //todo offsets hav to be right...
             this.root = newRoot;
             splitChild(newRoot, 1);
             insertNonFull(newRoot, key, index);

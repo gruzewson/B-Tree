@@ -2,7 +2,7 @@ import java.io.FileNotFoundException;
 
 public class Main {
     public static void main(String[] args) throws FileNotFoundException {
-        Page page = new Page(4, false);
+/*        Page page = new Page(4, false);
         page.addValue(1, 15, 15);
         page.addValue(2, 30, 30);
 
@@ -21,12 +21,11 @@ public class Main {
         System.out.println(page);
         System.out.println(page2);
         System.out.println(page3);
-        page.savePage();
+        page.savePage(path);
         page2.savePage();
-        page3.savePage();
+        page3.savePage();*/
 
         BTree bTree = new BTree();
-        bTree.search(15, 0, true);
-        //bTree.insert(7, 23);
+        bTree.insert(1, 1);
     }
 }
