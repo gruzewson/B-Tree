@@ -1,60 +1,92 @@
+import data.DataManager;
+import data.Record;
+import data.RecordBuffer;
+
 import java.io.*;
-import java.util.Optional;
 
 public class BTree {
-    private int d; // Minimalna liczba kluczy w węźle (maksymalnie 2d)
-    private String basePath; // Ścieżka bazowa dla plików węzłów
-    private int nextPageId; // Identyfikator dla kolejnych węzłów
-    private Page root; // Korzeń drzewa
+    private final int d;
+    private int nextPageId;
+    private NodePage root;
+    private int recordBuffersRead = 0;
+    DataManager dataManager;
 
-    public BTree(int d, String basePath) {
+    public BTree(int d, int recordNum) {
         this.d = d;
-        this.basePath = basePath;
         this.nextPageId = 0;
-
-        // Tworzymy początkowy korzeń jako liść
-        this.root = new Page(nextPageId++, true, d);
-        savePage(root);
+        this.root = new NodePage(nextPageId++, true, d);
+        root.savePage();
+        this.dataManager = new DataManager(recordNum);
     }
 
-    // Operacja search()
-    public Optional<Integer> search(int key) {
-        return search(root, key);
+    public void init(String[] args, int recordNum,int bufferSize) {
+        dataManager.deleteAllPages();
+        dataManager.getData(args, "data");
+        RecordBuffer buffer = new RecordBuffer(bufferSize);
+        for(int i = 0; i < Math.ceil((double) recordNum /bufferSize); i++) {
+            buffer.readRecords("src/main/java/data/data.txt", i * bufferSize);
+            recordBuffersRead++;
+            for(int j = 0; j < buffer.getCurrentSize(); j++) {
+                insert(buffer.getRecord(j).getKey(), i * bufferSize + j);
+            }
+            buffer.clearBuffer();
+        }
+        printTree();
+        System.out.println("\nRecord buffers read: " + recordBuffersRead);
+        //todo record buffers saved, pages saved and read?
     }
 
-    private Optional<Integer> search(Page Page, int key) {
+    public void insertRecord(Record record) {
+        //todo check if record already exists, do i generate key or insert it?
+
+        RecordBuffer buffer = new RecordBuffer(1);
+        buffer.addRecord(record);
+        buffer.saveBuffer("src/main/java/data/data.txt");
+        insert(record.getKey(), dataManager.getRecordNum());
+    }
+
+    public Record findRecord(int key) {
+        int index = search(root, key);
+        if (index == -1) {
+            return null;
+        }
+        return dataManager.getRecord(index);
+    }
+
+    private int search(NodePage Page, int key) {
         int i = 0;
         while (i < Page.getKeyCount() && key > Page.getKeys().get(i)) {
             i++;
         }
 
         if (i < Page.getKeyCount() && key == Page.getKeys().get(i)) {
-            return Optional.of(Page.getIndexes().get(i));
+            System.out.println("Key found at index: " + Page.getIndexes().get(i));
+            return Page.getIndexes().get(i);
         }
 
         if (Page.isLeaf()) {
-            return Optional.empty();
+            System.out.println("Key not found");
+            return -1;
         } else {
-            Page child = loadPage(Page.getChildrenPageIds().get(i));
+            NodePage child = loadPage(Page.getChildrenPageIds().get(i));
             return search(child, key);
         }
     }
 
-    // Operacja insert()
+    // todo block same keys, also index should be calculated
     public void insert(int key, int index) {
-        Page root = this.root;
+        NodePage root = this.root;
         if (root.isFull()) {
-            // Korzeń jest pełny, potrzebny split
-            Page newRoot = new Page(nextPageId++, false, d);
+            NodePage newRoot = new NodePage(nextPageId++, false, d);
             newRoot.addChildPageId(root.getPageId());
             splitChild(newRoot, 0, root);
             this.root = newRoot;
-            savePage(newRoot);
+            newRoot.savePage();
         }
         insertNonFull(this.root, key, index);
     }
 
-    private void insertNonFull(Page Page, int key, int index) {
+    private void insertNonFull(NodePage Page, int key, int index) {
         if (Page.isLeaf()) {
             int i = Page.getKeyCount() - 1;
             while (i >= 0 && key < Page.getKeys().get(i)) {
@@ -63,73 +95,78 @@ public class BTree {
             Page.getKeys().add(i + 1, key);
             Page.getIndexes().add(i + 1, index);
             Page.incrementKeyCount(1);
-            savePage(Page);
+            Page.savePage();
         } else {
             int i = Page.getKeyCount() - 1;
             while (i >= 0 && key < Page.getKeys().get(i)) {
                 i--;
             }
             i++;
-            System.out.println("i: " + i);
-            System.out.println("Page: " + Page.getKeys());
-            System.out.println("Page.getChildrenPageIds(): " + Page.getChildrenPageIds());
-            Page child = loadPage(Page.getChildrenPageIds().get(i));
-            if (child.getKeyCount() == child.getMaxKeys()) { // Sprawdzamy, czy osiągnięto limit 2d+1
+            NodePage child = loadPage(Page.getChildrenPageIds().get(i));
+            if (child.getKeyCount() == child.getMaxKeys()) {
                 splitChild(Page, i, child);
                 if (key > Page.getKeys().get(i)) {
-                    i++; // Przesuń wskaźnik, jeśli klucz idzie do nowego dziecka
+                    i++;
                 }
             }
             insertNonFull(loadPage(Page.getChildrenPageIds().get(i)), key, index);
         }
     }
 
-    private void splitChild(Page parent, int index, Page fullChild) {
-        Page newChild = new Page(nextPageId++, fullChild.isLeaf(), d);
+    private void splitChild(NodePage parent, int index, NodePage fullChild) {
+        NodePage newChild = new NodePage(nextPageId++, fullChild.isLeaf(), d);
 
-        // Przenieś klucze i indeksy z pełnego węzła do nowego
         for (int j = 0; j < d-1; j++) {
             newChild.getKeys().add(fullChild.getKeys().remove(d+1));
             newChild.getIndexes().add(fullChild.getIndexes().remove(d+1));
         }
-        newChild.setKeyCount(d-1); // Nowy węzeł ma dokładnie `d` kluczy
-        System.out.println("newChild: " + newChild.getKeys());
+        newChild.setKeyCount(d-1);
 
-        // Jeśli węzeł nie jest liściem, przenieś również dzieci
         if (!fullChild.isLeaf()) {
             for (int j = 0; j < d + 1; j++) {
-                newChild.getChildrenPageIds().add(fullChild.getChildrenPageIds().remove(d + 1));
+                newChild.getChildrenPageIds().add(fullChild.getChildrenPageIds().remove(d));
             }
         }
 
-        // Przenieś środkowy klucz z pełnego węzła do rodzica
+        // move middle key to parent
         parent.getKeys().add(index, fullChild.getKeys().remove(d));
         parent.getIndexes().add(index, fullChild.getIndexes().remove(d));
         parent.getChildrenPageIds().add(index + 1, newChild.getPageId());
         parent.incrementKeyCount(1);
-        System.out.println("parent: " + parent.getKeys());
 
-        // Zaktualizuj liczbę kluczy w oryginalnym węźle
         fullChild.setKeyCount(d);
 
-        // Zapisz zmiany w plikach
-        savePage(parent);
-        savePage(fullChild);
-        savePage(newChild);
+        parent.savePage();
+        fullChild.savePage();
+        newChild.savePage();
     }
 
-    // Zarządzanie plikami węzłów
-    private void savePage(Page Page) {
-        try {
-            Page.saveToFile(basePath + "/Page_" + Page.getPageId() + ".txt");
-        } catch (IOException e) {
-            throw new RuntimeException("Error saving Page: " + e.getMessage());
+    public void printTree() {
+        printNode(root, "");
+    }
+
+    private void printNode(NodePage page, String prefix) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(prefix);
+        sb.append("Page ").append(page.getPageId()).append(": ");
+        for (int i = 0; i < page.getKeyCount(); i++) {
+            if (i == page.getKeyCount() - 1) {
+                sb.append(page.getKeys().get(i)).append(" ");
+            } else{
+                sb.append(page.getKeys().get(i)).append(", ");
+            }
+            //sb.append(page.getIndexes().get(i)).append("; ");
+        }
+        System.out.println(sb.toString());
+        for(int i = 0; i < page.getChildrenPageIds().size(); i++) {
+            NodePage child = loadPage(page.getChildrenPageIds().get(i));
+            printNode(child, prefix + "| ");
         }
     }
 
-    private Page loadPage(int pageId) {
+    public NodePage loadPage(int pageId) {
         try {
-            return Page.loadFromFile(basePath + "/Page_" + pageId + ".txt");
+            return NodePage.loadFromFile("src/main/java/pages/Page" + pageId + ".txt");
         } catch (IOException e) {
             throw new RuntimeException("Error loading Page: " + e.getMessage());
         }

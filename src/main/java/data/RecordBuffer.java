@@ -1,14 +1,16 @@
+package data;
+
 import java.io.*;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class recordBuffer {
+public class RecordBuffer {
     private final int maxSize;
     private Record[] buffer;
     private int currentSize = 0;
 
-    public recordBuffer(int maxSize) {
+    public RecordBuffer(int maxSize) {
         this.maxSize = maxSize;
         this.buffer = new Record[maxSize];
     }
@@ -26,24 +28,31 @@ public class recordBuffer {
 
             for (int i = 0; i < maxSize; i++) {
                 line = reader.readLine();
-                if (line == null) {
-                    //System.out.println("Reached the end of the file. Buffer will not be completely filled.");
+                if (line == null) { //end of file
                     for (int j = i; j < maxSize; j++) {
                         buffer[j] = null;
                     }
                     break;
                 }
-                List<Float> numbers = Arrays.stream(line.split(" "))
+
+                String[] parts = line.split(" ");
+                if (parts.length < 2) {
+                    throw new IllegalArgumentException("Invalid record format. Must contain at least one number and a key.");
+                }
+
+                List<Float> numbers = Arrays.stream(parts, 0, parts.length - 1)
                         .map(Float::parseFloat)
-                        .collect(Collectors.toList());
-                Record record = new Record(numbers);
+                        .toList();
+                int key = Integer.parseInt(parts[parts.length - 1]);
+                Record record = new Record(numbers, key);
                 buffer[i] = record;
                 currentSize++;
             }
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Error reading file: " + e.getMessage(), e);
         }
     }
+
 
     @Override
     public String toString() {
@@ -94,12 +103,10 @@ public class recordBuffer {
                 if (record == null) {
                     break;
                 }
-                writer.write(String.format("%.1f %.1f %.1f%n", record.getNumber(0), record.getNumber(1), record.getNumber(2)));
+                writer.write(String.format("%.1f %.1f %.1f %d%n", record.getNumber(0), record.getNumber(1), record.getNumber(2), record.getKey()));
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
-
-
 }
