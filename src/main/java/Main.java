@@ -1,31 +1,37 @@
-import java.io.FileNotFoundException;
+import java.util.Optional;
 
 public class Main {
-    public static void main(String[] args) throws FileNotFoundException {
-/*        Page page = new Page(4, false);
-        page.addValue(1, 15, 15);
-        page.addValue(2, 30, 30);
+    public static void main(String[] args) {
+        int d = 2; // Minimalna liczba kluczy w węźle (maksymalnie 2 * d)
+        String basePath = "src/main/java/data";
 
-        Page page2 = new Page(4, true);
-        page2.addValue(null, 5, 20);
-        page2.addValue(null, 10, 22);
-        page2.addValue(null, 12, 26);
-        page2.addValue(null, 13, 34);
+        BTree btree = new BTree(d, basePath);
+        btree.insert(10, 100);
+        btree.insert(20, 200);
+        btree.insert(30, 50);
+        btree.insert(40, 150);
+        btree.insert(50, 250);
+        btree.insert(21, 250);
+        btree.insert(22, 250);
+        btree.insert(23, 250);
+        /*btree.insert(60, 250);
+        btree.insert(70, 250);
+        btree.insert(11, 250);
+        btree.insert(12, 250);
+        btree.insert(13, 250);
+        btree.insert(14, 250);*/
+        /*btree.insert(31, 300);
+        btree.insert(32, 400);
+        btree.insert(29, 400);
+        btree.insert(51, 400);*/
+        //btree.insert(19, 400);
+        //btree.insert(21, 400);
+        //btree.insert(26, 400);
 
-        Page page3 = new Page(4, true);
-        page3.addValue(null, 16, 45);
-        page3.addValue(null, 19, 50);
-        page3.addValue(null, 21, 50);
-        page3.addValue(null, 26, 50);
-
-        System.out.println(page);
-        System.out.println(page2);
-        System.out.println(page3);
-        page.savePage(path);
-        page2.savePage();
-        page3.savePage();*/
-
-        BTree bTree = new BTree();
-        bTree.insert(1, 1);
+        Optional<Integer> result = btree.search(10);
+        result.ifPresentOrElse(
+                index -> System.out.println("Found key at index: " + index),
+                () -> System.out.println("Key not found")
+        );
     }
 }
