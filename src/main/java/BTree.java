@@ -3,6 +3,8 @@ import data.Record;
 import data.RecordBuffer;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class BTree {
     private final int d;
@@ -27,54 +29,64 @@ public class BTree {
             buffer.readRecords("src/main/java/data/data.txt", i * bufferSize);
             recordBuffersRead++;
             for(int j = 0; j < buffer.getCurrentSize(); j++) {
-                insert(buffer.getRecord(j).getKey(), i * bufferSize + j);
+                insert(buffer.getRecord(j).getKey(), i * bufferSize + j + 1, false);
             }
             buffer.clearBuffer();
         }
-        printTree();
+        //printTree();
         System.out.println("\nRecord buffers read: " + recordBuffersRead);
         //todo record buffers saved, pages saved and read?
     }
 
     public void insertRecord(Record record) {
-        //todo check if record already exists, do i generate key or insert it?
+        //todo check if record already exists
+        if(search(root, record.getKey(), false) != -1) {
+            System.out.println("Record with key " + record.getKey() + " already exists");
+            return;
+        }
 
         RecordBuffer buffer = new RecordBuffer(1);
         buffer.addRecord(record);
         buffer.saveBuffer("src/main/java/data/data.txt");
-        insert(record.getKey(), dataManager.getRecordNum());
+        insert(record.getKey(), dataManager.getRecordNum(), true);
     }
 
     public Record findRecord(int key) {
-        int index = search(root, key);
+        int index = search(root, key, true);
         if (index == -1) {
             return null;
         }
         return dataManager.getRecord(index);
     }
 
-    private int search(NodePage Page, int key) {
+    private int search(NodePage Page, int key, boolean print) {
         int i = 0;
         while (i < Page.getKeyCount() && key > Page.getKeys().get(i)) {
             i++;
         }
 
         if (i < Page.getKeyCount() && key == Page.getKeys().get(i)) {
-            System.out.println("Key found at index: " + Page.getIndexes().get(i));
+            if (print)
+                System.out.println("Key found at index: " + Page.getIndexes().get(i) + ", in tree page " + Page.getPageId());
             return Page.getIndexes().get(i);
         }
-
-        if (Page.isLeaf()) {
-            System.out.println("Key not found");
+        else if (Page.isLeaf()) {
+            if (print)
+                System.out.println("Key not found");
             return -1;
         } else {
             NodePage child = loadPage(Page.getChildrenPageIds().get(i));
-            return search(child, key);
+            return search(child, key, print);
         }
     }
 
-    // todo block same keys, also index should be calculated
-    public void insert(int key, int index) {
+    public void insert(int key, int index, boolean print) {
+        if(search(root, key, false) != -1) {
+            if(print)
+                System.out.println("Record with key " + key + " already exists");
+            return;
+        }
+
         NodePage root = this.root;
         if (root.isFull()) {
             NodePage newRoot = new NodePage(nextPageId++, false, d);
@@ -123,8 +135,8 @@ public class BTree {
         newChild.setKeyCount(d-1);
 
         if (!fullChild.isLeaf()) {
-            for (int j = 0; j < d + 1; j++) {
-                newChild.getChildrenPageIds().add(fullChild.getChildrenPageIds().remove(d));
+            for (int j = 0; j < d; j++) {
+                newChild.getChildrenPageIds().add(fullChild.getChildrenPageIds().remove(d+1));
             }
         }
 
@@ -157,18 +169,81 @@ public class BTree {
             }
             //sb.append(page.getIndexes().get(i)).append("; ");
         }
-        System.out.println(sb.toString());
+        System.out.println(sb);
         for(int i = 0; i < page.getChildrenPageIds().size(); i++) {
             NodePage child = loadPage(page.getChildrenPageIds().get(i));
             printNode(child, prefix + "| ");
         }
     }
 
+    public void printKeys(NodePage page) {
+        for (int i = 0; i < page.getKeyCount(); i++) {
+            // Visit the i-th child page first (if it exists)
+            if (!page.isLeaf()) {
+                NodePage child = loadPage(page.getChildrenPageIds().get(i));
+                printKeys(child);
+            }
+            //print vertically
+            System.out.print(page.getKeys().get(i) + " ");
+            //print horizontally
+            //System.out.print(page.getKeys().get(i) + "\n");
+        }
+
+        if (!page.isLeaf()) {
+            NodePage lastChild = loadPage(page.getChildrenPageIds().get(page.getKeyCount()));
+            printKeys(lastChild);
+        }
+    }
+
+
     public NodePage loadPage(int pageId) {
         try {
             return NodePage.loadFromFile("src/main/java/pages/Page" + pageId + ".txt");
         } catch (IOException e) {
             throw new RuntimeException("Error loading Page: " + e.getMessage());
+        }
+    }
+
+    public void interactiveMode() throws IOException {
+        StringBuilder sb = new StringBuilder();
+        sb.append("-------------------------------\n").append("Commands:\n").append("1 - insert record\n")
+                .append("2 - find record\n").append("3 - print tree\n").append("4 - print keys\n")
+                .append("q - exit program\n").append("-------------------------------");
+        while(true){
+            System.out.println(sb);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+            String command = reader.readLine();
+            if(command.equals("q")){
+                break;
+            }
+            if(command.equals("3")){
+                printTree();
+            }
+            if(command.equals("1")){
+                System.out.println("Enter record value [format: v1 v2 v3]: ");
+                List<Float> values = new ArrayList<>();
+                String[] inputs = reader.readLine().split(" ");
+                for (String input : inputs) {
+                    float value = Float.parseFloat(input);
+                    values.add(value);
+                }
+                System.out.println("Enter record key: ");
+                int key = Integer.parseInt(reader.readLine());
+                insertRecord(new Record(values, key));
+            }
+            if(command.equals("2")){
+                System.out.println("Enter key to find: ");
+                int key = Integer.parseInt(reader.readLine().trim());
+                Record record = findRecord(key);
+                if (record != null) {
+                    System.out.println(record);
+                }
+
+            }
+            if(command.equals("4")){
+                printKeys(root);
+                System.out.println();
+            }
         }
     }
 }

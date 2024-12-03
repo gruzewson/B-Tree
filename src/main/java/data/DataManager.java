@@ -26,7 +26,7 @@ public class DataManager {
                 v1 = options[random.nextInt(options.length)];
                 v2 = options[random.nextInt(options.length)];
                 v3 = options[random.nextInt(options.length)];
-                key = random.nextInt(Integer.MAX_VALUE);
+                key = random.nextInt(100);
 
                 writer.write(String.format("%.1f %.1f %.1f %d%n", v1, v2, v3, key));
             }
@@ -119,7 +119,7 @@ public class DataManager {
     public Record getRecord(int index){
         try (BufferedReader reader = new BufferedReader(new FileReader("src/main/java/data/data.txt"))) {
             String line;
-            for (int i = 0; i < index; i++) {
+            for (int i = 0; i < index-1; i++) {
                 reader.readLine();
             }
             line = reader.readLine();

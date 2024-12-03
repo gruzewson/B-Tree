@@ -3,14 +3,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class NodePage {
-    private int pageId; // Unikalny identyfikator węzła
-    private boolean isLeaf; // Czy węzeł jest liściem
+    private final int pageId; // Unikalny identyfikator węzła
+    private final boolean isLeaf; // Czy węzeł jest liściem
     private int keyCount; // Liczba kluczy w węźle
-    private List<Integer> keys; // Lista kluczy
-    private List<Integer> indexes; // Lista indeksów związanych z kluczami
-    private List<Integer> childrenPageIds; // Lista identyfikatorów dzieci (tylko dla węzłów wewnętrznych)
-    private int maxKeys; // Maksymalna liczba kluczy (2d)
-    private final String pagesPath = "src/main/java/pages";
+    private final List<Integer> keys; // Lista kluczy
+    private final List<Integer> indexes; // Lista indeksów związanych z kluczami
+    private final List<Integer> childrenPageIds; // Lista identyfikatorów dzieci (tylko dla węzłów wewnętrznych)
+    private final int maxKeys; // Maksymalna liczba kluczy (2d)
 
     public NodePage(int pageId, boolean isLeaf, int d) {
         this.pageId = pageId;
@@ -69,6 +68,7 @@ public class NodePage {
 
     public void savePage() {
         try {
+            String pagesPath = "src/main/java/pages";
             saveToFile(pagesPath + "/Page" + getPageId() + ".txt");
         } catch (IOException e) {
             throw new RuntimeException("Error saving Page: " + e.getMessage());
@@ -90,25 +90,44 @@ public class NodePage {
     public static NodePage loadFromFile(String filePath) throws IOException {
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String[] header = reader.readLine().split(",");
-            int pageId = Integer.parseInt(header[0]);
-            boolean isLeaf = Boolean.parseBoolean(header[1]);
-            int keyCount = Integer.parseInt(header[2]);
-            int maxKeys = Integer.parseInt(header[3]);
-            NodePage Page = new NodePage(pageId, isLeaf, maxKeys / 2);
-            Page.setKeyCount(keyCount);
-
-            for (int i = 0; i < Page.getKeyCount(); i++) {
-                String[] keyValue = reader.readLine().split(":");
-                Page.getKeys().add(Integer.parseInt(keyValue[0]));
-                Page.getIndexes().add(Integer.parseInt(keyValue[1]));
+            if (header.length != 4) {
+                throw new IllegalArgumentException("Invalid header format: " + String.join(",", header));
             }
 
-            String childLine;
-            while ((childLine = reader.readLine()) != null) {
-                Page.getChildrenPageIds().add(Integer.parseInt(childLine));
+            int pageId = Integer.parseInt(header[0].trim());
+            boolean isLeaf = Boolean.parseBoolean(header[1].trim());
+            int keyCount = Integer.parseInt(header[2].trim());
+            int maxKeys = Integer.parseInt(header[3].trim());
+
+            NodePage page = new NodePage(pageId, isLeaf, maxKeys / 2);
+            page.setKeyCount(keyCount);
+
+            //System.out.println("keyCount: " + keyCount);
+
+            // Parse keys and indexes
+            for (int i = 0; i < keyCount; i++) {
+                String line = reader.readLine();
+                String[] keyValue = line.split(":");
+                page.getKeys().add(Integer.parseInt(keyValue[0].trim()));
+                page.getIndexes().add(Integer.parseInt(keyValue[1].trim()));
             }
-            return Page;
+
+            // Parse child page IDs if not a leaf
+            if (!isLeaf) {
+                String childLine;
+                while ((childLine = reader.readLine()) != null) {
+                    page.getChildrenPageIds().add(Integer.parseInt(childLine.trim()));
+                }
+            }
+
+            return page;
+
+        } catch (NumberFormatException e) {
+            throw new RuntimeException("Error parsing number in file: " + filePath, e);
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Error in file format: " + filePath, e);
         }
     }
+
 
 }

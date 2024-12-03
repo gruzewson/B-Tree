@@ -1,20 +1,16 @@
-import data.DataManager;
-import data.Record;
+import java.io.IOException;
 
-import java.util.List;
-import java.util.Optional;
 
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         int d = 2; // Minimalna liczba kluczy w węźle (maksymalnie 2 * d)
-        int recordNum = 10; // Liczba rekordów do wygenerowania
+        int recordNum = 100; // Liczba rekordów do wygenerowania
 
         BTree btree = new BTree(d, recordNum);
-        btree.init(args, recordNum, 3);
-        btree.insertRecord(new Record(List.of(1.0f, 2.0f, 3.0f) , 1));
-        btree.printTree();
+        btree.init(args, recordNum, 40);
+        //System.out.println("record with key 1: " + btree.findRecord(1));
 
-        System.out.println("record with key 1: " + btree.findRecord(1));
+        btree.interactiveMode();
 
     }
 }
