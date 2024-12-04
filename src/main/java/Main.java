@@ -3,14 +3,26 @@ import java.io.IOException;
 
 public class Main {
     public static void main(String[] args) throws IOException {
-        int d = 2; // Minimalna liczba kluczy w węźle (maksymalnie 2 * d)
-        int recordNum = 100; // Liczba rekordów do wygenerowania
+        int d = 2;
+        int recordNum = 15;
+        int bufferSize = 10;
+        String commandsFile = "src/main/java/data/commands.txt";
 
         BTree btree = new BTree(d, recordNum);
-        btree.init(args, recordNum, 40);
-        //System.out.println("record with key 1: " + btree.findRecord(1));
-
-        btree.interactiveMode();
+        switch (args[1]) {
+            case "interactive" -> {
+                btree.init(args, recordNum, bufferSize);
+                btree.interactiveMode();
+            }
+            case "commands" -> {
+                btree.commandsMode(commandsFile, recordNum);
+            }
+            case "mixed" -> {
+                btree.commandsMode(commandsFile, recordNum);
+                btree.interactiveMode();
+            }
+            default -> System.out.println("Invalid mode");
+        }
 
     }
 }

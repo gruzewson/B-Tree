@@ -39,7 +39,6 @@ public class BTree {
     }
 
     public void insertRecord(Record record) {
-        //todo check if record already exists
         if(search(root, record.getKey(), false) != -1) {
             System.out.println("Record with key " + record.getKey() + " already exists");
             return;
@@ -160,14 +159,10 @@ public class BTree {
     private void printNode(NodePage page, String prefix) {
         StringBuilder sb = new StringBuilder();
         sb.append(prefix);
-        sb.append("Page ").append(page.getPageId()).append(": ");
+        sb.append("Page ").append(page.getPageId()).append(": ").append(page.isLeaf() ? "leaf" : "internal")
+                .append(", ").append("keys[").append(page.getKeyCount()).append("]: ");
         for (int i = 0; i < page.getKeyCount(); i++) {
-            if (i == page.getKeyCount() - 1) {
-                sb.append(page.getKeys().get(i)).append(" ");
-            } else{
-                sb.append(page.getKeys().get(i)).append(", ");
-            }
-            //sb.append(page.getIndexes().get(i)).append("; ");
+            sb.append(page.getKeys().get(i)).append("> ").append(page.getIndexes().get(i)).append(", ");
         }
         System.out.println(sb);
         for(int i = 0; i < page.getChildrenPageIds().size(); i++) {
@@ -246,4 +241,29 @@ public class BTree {
             }
         }
     }
-}
+
+    public void commandsMode(String filename, int recordNum) {
+        DataManager dataManager = new DataManager(recordNum);
+        dataManager.generateCommands(recordNum);
+        File file = new File(filename);
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(" ");
+                if (parts[0].equals("insert")) {
+                    float v1 = Float.parseFloat(parts[1]);
+                    float v2 = Float.parseFloat(parts[2]);
+                    float v3 = Float.parseFloat(parts[3]);
+                    int key = Integer.parseInt(parts[4]);
+                    insertRecord(new Record(List.of(v1, v2, v3), key));
+                    printTree();
+                } else {
+                    System.out.println("Invalid command: " + line);
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    }

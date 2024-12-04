@@ -26,7 +26,7 @@ public class DataManager {
                 v1 = options[random.nextInt(options.length)];
                 v2 = options[random.nextInt(options.length)];
                 v3 = options[random.nextInt(options.length)];
-                key = random.nextInt(100);
+                key = random.nextInt(Integer.MAX_VALUE);
 
                 writer.write(String.format("%.1f %.1f %.1f %d%n", v1, v2, v3, key));
             }
@@ -45,7 +45,7 @@ public class DataManager {
             File file = fileChooser.getSelectedFile();
             System.out.println("File selected: " + file.getAbsolutePath());
         } else {
-            System.out.println("File selection canceled. Choosing deafult file...");
+            System.out.println("File selection canceled. Choosing default file...");
         }
     }
 
@@ -154,6 +154,26 @@ public class DataManager {
         }
 
         return count;
+    }
+
+    public void generateCommands(int recordNum) {
+        File file = new File("src/main/java/data/commands.txt");
+        float[] options = {2, 3, 3.5F, 4, 4.5F, 5};
+        float v1, v2, v3;
+        int key;
+        Random random = new Random();
+
+        try (FileWriter writer = new FileWriter(file)) {
+            for (int i = 0; i < recordNum; i++) {
+                v1 = options[random.nextInt(options.length)];
+                v2 = options[random.nextInt(options.length)];
+                v3 = options[random.nextInt(options.length)];
+                key = random.nextInt(Integer.MAX_VALUE);
+                writer.write(String.format("insert %.1f %.1f %.1f %d%n", v1, v2, v3, key));
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 
