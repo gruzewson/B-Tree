@@ -103,7 +103,8 @@ public class RecordBuffer {
                 if (record == null) {
                     break;
                 }
-                writer.write(String.format("%.1f %.1f %.1f %d%n", record.getNumber(0), record.getNumber(1), record.getNumber(2), record.getKey()));
+                writer.write(String.format("%.1f %.1f %.1f %d%n", record.getNumber(0),
+                        record.getNumber(1), record.getNumber(2), record.getKey()));
             }
         } catch (IOException e) {
             throw new RuntimeException(e);

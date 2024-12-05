@@ -3,13 +3,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class NodePage {
-    private final int pageId; // Unikalny identyfikator węzła
-    private final boolean isLeaf; // Czy węzeł jest liściem
-    private int keyCount; // Liczba kluczy w węźle
-    private final List<Integer> keys; // Lista kluczy
-    private final List<Integer> indexes; // Lista indeksów związanych z kluczami
-    private final List<Integer> childrenPageIds; // Lista identyfikatorów dzieci (tylko dla węzłów wewnętrznych)
-    private final int maxKeys; // Maksymalna liczba kluczy (2d)
+    private final int pageId;
+    private final boolean isLeaf;
+    private int keyCount;
+    private final List<Integer> keys;
+    private final List<Integer> indexes;
+    private final List<Integer> childrenPageIds;
+    private final int maxKeys;
 
     public NodePage(int pageId, boolean isLeaf, int d) {
         this.pageId = pageId;
@@ -18,10 +18,9 @@ public class NodePage {
         this.keys = new ArrayList<>();
         this.indexes = new ArrayList<>();
         this.childrenPageIds = new ArrayList<>();
-        this.maxKeys = 2 * d; // Maksymalnie 2d kluczy
+        this.maxKeys = 2 * d;
     }
 
-    // Gettery i settery
     public int getPageId() {
         return pageId;
     }
@@ -44,6 +43,14 @@ public class NodePage {
 
     public List<Integer> getChildrenPageIds() {
         return childrenPageIds;
+    }
+
+    public int removeKey(int index) {
+        return keys.remove(index);
+    }
+
+    public int removeIndex(int index) {
+        return indexes.remove(index);
     }
 
     public int getMaxKeys() {
@@ -102,8 +109,6 @@ public class NodePage {
             NodePage page = new NodePage(pageId, isLeaf, maxKeys / 2);
             page.setKeyCount(keyCount);
 
-            //System.out.println("keyCount: " + keyCount);
-
             // Parse keys and indexes
             for (int i = 0; i < keyCount; i++) {
                 String line = reader.readLine();
@@ -119,15 +124,11 @@ public class NodePage {
                     page.getChildrenPageIds().add(Integer.parseInt(childLine.trim()));
                 }
             }
-
             return page;
-
         } catch (NumberFormatException e) {
             throw new RuntimeException("Error parsing number in file: " + filePath, e);
         } catch (IllegalArgumentException e) {
             throw new RuntimeException("Error in file format: " + filePath, e);
         }
     }
-
-
 }

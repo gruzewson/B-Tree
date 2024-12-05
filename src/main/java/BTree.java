@@ -1,16 +1,13 @@
 import data.DataManager;
 import data.Record;
 import data.RecordBuffer;
-
 import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
 
 public class BTree {
     private final int d;
     private int nextPageId;
     private NodePage root;
-    private int recordBuffersRead = 0;
+    private final Statistics stats;
     DataManager dataManager;
 
     public BTree(int d, int recordNum) {
@@ -18,24 +15,16 @@ public class BTree {
         this.nextPageId = 0;
         this.root = new NodePage(nextPageId++, true, d);
         root.savePage();
+        this.stats = new Statistics();
         this.dataManager = new DataManager(recordNum);
     }
 
-    public void init(String[] args, int recordNum,int bufferSize) {
-        dataManager.deleteAllPages();
-        dataManager.getData(args, "data");
-        RecordBuffer buffer = new RecordBuffer(bufferSize);
-        for(int i = 0; i < Math.ceil((double) recordNum /bufferSize); i++) {
-            buffer.readRecords("src/main/java/data/data.txt", i * bufferSize);
-            recordBuffersRead++;
-            for(int j = 0; j < buffer.getCurrentSize(); j++) {
-                insert(buffer.getRecord(j).getKey(), i * bufferSize + j + 1, false);
-            }
-            buffer.clearBuffer();
-        }
-        //printTree();
-        System.out.println("\nRecord buffers read: " + recordBuffersRead);
-        //todo record buffers saved, pages saved and read?
+    public NodePage getRoot() {
+        return root;
+    }
+
+    public Statistics getStats() {
+        return stats;
     }
 
     public void insertRecord(Record record) {
@@ -44,9 +33,10 @@ public class BTree {
             return;
         }
 
-        RecordBuffer buffer = new RecordBuffer(1);
+        RecordBuffer buffer = new RecordBuffer(1); //todo: change buffer size, add read buffers
         buffer.addRecord(record);
         buffer.saveBuffer("src/main/java/data/data.txt");
+        stats.incrementRecordBuffersSaved();
         insert(record.getKey(), dataManager.getRecordNum(), true);
     }
 
@@ -93,35 +83,131 @@ public class BTree {
             splitChild(newRoot, 0, root);
             this.root = newRoot;
             newRoot.savePage();
+            stats.incrementPagesSaved(1);
         }
         insertNonFull(this.root, key, index);
     }
 
-    private void insertNonFull(NodePage Page, int key, int index) {
-        if (Page.isLeaf()) {
-            int i = Page.getKeyCount() - 1;
-            while (i >= 0 && key < Page.getKeys().get(i)) {
-                i--;
-            }
-            Page.getKeys().add(i + 1, key);
-            Page.getIndexes().add(i + 1, index);
-            Page.incrementKeyCount(1);
-            Page.savePage();
-        } else {
-            int i = Page.getKeyCount() - 1;
-            while (i >= 0 && key < Page.getKeys().get(i)) {
+    private void insertNonFull(NodePage page, int key, int index) {
+        if (page.isLeaf()) {
+            // Insert key in the leaf
+            int i = page.getKeyCount() - 1;
+            while (i >= 0 && key < page.getKeys().get(i)) {
                 i--;
             }
             i++;
-            NodePage child = loadPage(Page.getChildrenPageIds().get(i));
+            page.getKeys().add(i, key);
+            page.getIndexes().add(i, index);
+            page.incrementKeyCount(1);
+            page.savePage();
+            System.out.println("Key " + key + " inserted at page " + page.getPageId());
+            stats.incrementPagesSaved(1);
+        } else {
+            // Traverse to the child that will accommodate the key
+            int i = page.getKeyCount() - 1;
+            while (i >= 0 && key < page.getKeys().get(i)) {
+                i--;
+            }
+            i++;
+            NodePage child = loadPage(page.getChildrenPageIds().get(i));
+
+            // Check if the child is full
             if (child.getKeyCount() == child.getMaxKeys()) {
-                splitChild(Page, i, child);
-                if (key > Page.getKeys().get(i)) {
-                    i++;
+                // Attempt to redistribute keys with siblings before splitting
+                if (!tryCompensate(page, i, child, key, index)) {
+                    // Split the child if redistribution is not possible
+                    splitChild(page, i, child);
+                    if (key > page.getKeys().get(i)) {
+                        i++;
+                    }
+                }
+                else {
+                    return;
                 }
             }
-            insertNonFull(loadPage(Page.getChildrenPageIds().get(i)), key, index);
+
+            // Continue insertion in the appropriate child
+            insertNonFull(loadPage(page.getChildrenPageIds().get(i)), key, index);
         }
+    }
+
+    private boolean tryCompensate(NodePage parent, int childIndex, NodePage child, int key, int index) {
+        // Check the right sibling
+        if (childIndex < parent.getChildrenPageIds().size() - 1) {
+            NodePage rightSibling = loadPage(parent.getChildrenPageIds().get(childIndex + 1));
+            stats.incrementPagesRead();
+            if (rightSibling.getKeyCount() < rightSibling.getMaxKeys()) {
+                // Redistribute keys to right sibling
+                rightSibling.getKeys().add(0, parent.getKeys().get(childIndex));
+                rightSibling.getIndexes().add(0, parent.getIndexes().get(childIndex));
+                rightSibling.incrementKeyCount(1);
+                rightSibling.savePage();
+
+                if(key > child.getKeys().get(child.getKeyCount() - 1)) {
+                    parent.getKeys().set(childIndex,key);
+                    parent.getIndexes().set(childIndex, index);
+                    parent.incrementKeyCount(1);
+                    System.out.println("Key " + key + " inserted at page " + parent.getPageId());
+                } else {
+                    parent.getKeys().set(childIndex, child.removeKey(child.getKeyCount() - 1));
+                    parent.getIndexes().set(childIndex, child.removeIndex(child.getKeyCount() - 1));
+                    child.incrementKeyCount(-1);
+                    int i = child.getKeyCount() - 1;
+                    while (i >= 0 && key < child.getKeys().get(i)) {
+                        i--;
+                    }
+                    i++;
+                    child.getKeys().add(i, key);
+                    child.getIndexes().add(i, index);
+                    child.incrementKeyCount(1);
+                    System.out.println("Key " + key + " inserted at page " + child.getPageId());
+                }
+                child.savePage();
+                parent.savePage();
+
+                stats.incrementPagesSaved(3);
+                return true;
+            }
+        }
+        // Check the left sibling
+        else if (childIndex > 0) {
+            NodePage leftSibling = loadPage(parent.getChildrenPageIds().get(childIndex - 1));
+            stats.incrementPagesRead();
+            if (leftSibling.getKeyCount() < leftSibling.getMaxKeys()) {
+                // Redistribute keys to left sibling
+                leftSibling.getKeys().add(leftSibling.getKeyCount(), parent.getKeys().get(childIndex-1));
+                leftSibling.getIndexes().add(leftSibling.getKeyCount(), parent.getIndexes().get(childIndex-1));
+                leftSibling.incrementKeyCount(1);
+                leftSibling.savePage();
+
+                if(key < child.getKeys().get(0)) {
+                    parent.getKeys().add(childIndex,key);
+                    parent.getIndexes().set(childIndex, index);
+                    parent.incrementKeyCount(1);
+                    System.out.println("Key " + key + " inserted at page " + parent.getPageId());
+                } else {
+                    parent.getKeys().set(childIndex-1, child.removeKey(0));
+                    parent.getIndexes().set(childIndex-1, child.removeIndex(0));
+                    child.incrementKeyCount(-1);
+                    int i = child.getKeyCount() - 1;
+                    while (i >= 0 && key < child.getKeys().get(i)) {
+                        i--;
+                    }
+                    i++;
+                    child.getKeys().add(i, key);
+                    child.getIndexes().add(i, index);
+                    child.incrementKeyCount(1);
+                    System.out.println("Key " + key + " inserted at page " + child.getPageId());
+                }
+                child.savePage();
+                parent.savePage();
+
+                stats.incrementPagesSaved(3);
+                return true;
+            }
+        }
+
+        return false; // Redistribution not possible
     }
 
     private void splitChild(NodePage parent, int index, NodePage fullChild) {
@@ -150,6 +236,7 @@ public class BTree {
         parent.savePage();
         fullChild.savePage();
         newChild.savePage();
+        stats.incrementPagesSaved(3);
     }
 
     public void printTree() {
@@ -162,7 +249,7 @@ public class BTree {
         sb.append("Page ").append(page.getPageId()).append(": ").append(page.isLeaf() ? "leaf" : "internal")
                 .append(", ").append("keys[").append(page.getKeyCount()).append("]: ");
         for (int i = 0; i < page.getKeyCount(); i++) {
-            sb.append(page.getKeys().get(i)).append("> ").append(page.getIndexes().get(i)).append(", ");
+            sb.append(page.getKeys().get(i)).append(" > ").append(page.getIndexes().get(i)).append(", ");
         }
         System.out.println(sb);
         for(int i = 0; i < page.getChildrenPageIds().size(); i++) {
@@ -173,14 +260,13 @@ public class BTree {
 
     public void printKeys(NodePage page) {
         for (int i = 0; i < page.getKeyCount(); i++) {
-            // Visit the i-th child page first (if it exists)
             if (!page.isLeaf()) {
                 NodePage child = loadPage(page.getChildrenPageIds().get(i));
                 printKeys(child);
             }
-            //print vertically
+            // print vertically
             System.out.print(page.getKeys().get(i) + " ");
-            //print horizontally
+            // print horizontally
             //System.out.print(page.getKeys().get(i) + "\n");
         }
 
@@ -190,80 +276,12 @@ public class BTree {
         }
     }
 
-
     public NodePage loadPage(int pageId) {
         try {
+            stats.incrementPagesRead();
             return NodePage.loadFromFile("src/main/java/pages/Page" + pageId + ".txt");
         } catch (IOException e) {
             throw new RuntimeException("Error loading Page: " + e.getMessage());
         }
     }
-
-    public void interactiveMode() throws IOException {
-        StringBuilder sb = new StringBuilder();
-        sb.append("-------------------------------\n").append("Commands:\n").append("1 - insert record\n")
-                .append("2 - find record\n").append("3 - print tree\n").append("4 - print keys\n")
-                .append("q - exit program\n").append("-------------------------------");
-        while(true){
-            System.out.println(sb);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-            String command = reader.readLine();
-            if(command.equals("q")){
-                break;
-            }
-            if(command.equals("3")){
-                printTree();
-            }
-            if(command.equals("1")){
-                System.out.println("Enter record value [format: v1 v2 v3]: ");
-                List<Float> values = new ArrayList<>();
-                String[] inputs = reader.readLine().split(" ");
-                for (String input : inputs) {
-                    float value = Float.parseFloat(input);
-                    values.add(value);
-                }
-                System.out.println("Enter record key: ");
-                int key = Integer.parseInt(reader.readLine());
-                insertRecord(new Record(values, key));
-            }
-            if(command.equals("2")){
-                System.out.println("Enter key to find: ");
-                int key = Integer.parseInt(reader.readLine().trim());
-                Record record = findRecord(key);
-                if (record != null) {
-                    System.out.println(record);
-                }
-
-            }
-            if(command.equals("4")){
-                printKeys(root);
-                System.out.println();
-            }
-        }
-    }
-
-    public void commandsMode(String filename, int recordNum) {
-        DataManager dataManager = new DataManager(recordNum);
-        dataManager.generateCommands(recordNum);
-        File file = new File(filename);
-
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(" ");
-                if (parts[0].equals("insert")) {
-                    float v1 = Float.parseFloat(parts[1]);
-                    float v2 = Float.parseFloat(parts[2]);
-                    float v3 = Float.parseFloat(parts[3]);
-                    int key = Integer.parseInt(parts[4]);
-                    insertRecord(new Record(List.of(v1, v2, v3), key));
-                    printTree();
-                } else {
-                    System.out.println("Invalid command: " + line);
-                }
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-    }
+}

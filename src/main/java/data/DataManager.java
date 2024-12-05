@@ -156,7 +156,7 @@ public class DataManager {
         return count;
     }
 
-    public void generateCommands(int recordNum) {
+    public void generateCommands() {
         File file = new File("src/main/java/data/commands.txt");
         float[] options = {2, 3, 3.5F, 4, 4.5F, 5};
         float v1, v2, v3;
@@ -176,5 +176,13 @@ public class DataManager {
         }
     }
 
+    public void clearData() {
+        File file = new File("src/main/java/data/data.txt");
+        try (FileWriter writer = new FileWriter(file)) {
+            writer.write("");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
 }

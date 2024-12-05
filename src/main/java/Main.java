@@ -9,17 +9,17 @@ public class Main {
         String commandsFile = "src/main/java/data/commands.txt";
 
         BTree btree = new BTree(d, recordNum);
+        BTreeDataManager manager = new BTreeDataManager(btree);
         switch (args[1]) {
             case "interactive" -> {
-                btree.init(args, recordNum, bufferSize);
-                btree.interactiveMode();
+                manager.interactiveMode(true);
             }
             case "commands" -> {
-                btree.commandsMode(commandsFile, recordNum);
+                manager.commandsMode(commandsFile, true);
             }
             case "mixed" -> {
-                btree.commandsMode(commandsFile, recordNum);
-                btree.interactiveMode();
+                manager.commandsMode(commandsFile, false);
+                manager.interactiveMode(false);
             }
             default -> System.out.println("Invalid mode");
         }
