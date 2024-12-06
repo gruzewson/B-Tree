@@ -4,15 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="eef6b841-b130-4655-a404-4203a02e7fb7" name="Changes" comment="added commands mode">
-      <change afterPath="$PROJECT_DIR$/src/main/java/BTreeDataManager.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/Statistics.java" afterDir="false" />
+    <list default="true" id="eef6b841-b130-4655-a404-4203a02e7fb7" name="Changes" comment="added compensating and cleaned code a little">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/BTree.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/BTree.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/Main.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/NodePage.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/NodePage.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/data/DataManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/data/DataManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/data/RecordBuffer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/data/RecordBuffer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/Statistics.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/Statistics.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -105,7 +101,9 @@
       <workItem from="1732997491916" duration="49358000" />
       <workItem from="1733174814073" duration="11896000" />
       <workItem from="1733348616140" duration="4025000" />
-      <workItem from="1733397528202" duration="11326000" />
+      <workItem from="1733397528202" duration="11400000" />
+      <workItem from="1733416516236" duration="3012000" />
+      <workItem from="1733494568177" duration="7519000" />
     </task>
     <task id="LOCAL-00001" summary="init">
       <option name="closed" value="true" />
@@ -179,7 +177,15 @@
       <option name="project" value="LOCAL" />
       <updated>1733352712881</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="added compensating and cleaned code a little">
+      <option name="closed" value="true" />
+      <created>1733412225560</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1733412225560</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -193,6 +199,7 @@
     <MESSAGE value="added some mechanics" />
     <MESSAGE value="fixed inserting, added printing all keys by order" />
     <MESSAGE value="added commands mode" />
-    <option name="LAST_COMMIT_MESSAGE" value="added commands mode" />
+    <MESSAGE value="added compensating and cleaned code a little" />
+    <option name="LAST_COMMIT_MESSAGE" value="added compensating and cleaned code a little" />
   </component>
 </project>

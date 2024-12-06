@@ -73,15 +73,6 @@ public class NodePage {
         this.keyCount += count;
     }
 
-    public void savePage() {
-        try {
-            String pagesPath = "src/main/java/pages";
-            saveToFile(pagesPath + "/Page" + getPageId() + ".txt");
-        } catch (IOException e) {
-            throw new RuntimeException("Error saving Page: " + e.getMessage());
-        }
-    }
-
     public void saveToFile(String filePath) throws IOException {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
             writer.write(pageId + "," + isLeaf + "," + keyCount + "," + maxKeys + "\n");
