@@ -91,8 +91,7 @@ public class BTree {
     }
 
     private void insertNonFull(NodePage Page, int key, int index) {
-        if (Page.isLeaf()) {
-
+        if (Page.isLeaf()){// && Page.getKeyCount() < Page.getMaxKeys()) {
             int i = Page.getKeyCount() - 1;
             while (i >= 0 && key < Page.getKeys().get(i)) {
                 i--;
@@ -109,13 +108,19 @@ public class BTree {
             }
             i++;
             NodePage child = loadPage(Page.getChildrenPageIds().get(i));
+            boolean compensate = false;
             if (child.getKeyCount() == child.getMaxKeys()) {
-                splitChild(Page, i, child);
-                if (key > Page.getKeys().get(i)) {
-                    i++;
+                if(child.isLeaf()){
+                    compensate = compensate(Page, i, child, key);
+                }
+                if (!compensate){
+                    splitChild(Page, i, child);
+                    if (key > Page.getKeys().get(i)) {
+                        i++;
+                    }
                 }
             }
-            System.out.println("loading page: " + Page.getChildrenPageIds().get(i));
+            //System.out.println("loading page: " + Page.getChildrenPageIds().get(i));
             insertNonFull(loadPage(Page.getChildrenPageIds().get(i)), key, index);
         }
     }
@@ -148,9 +153,13 @@ public class BTree {
         savePage(newChild);
     }
 
-    private boolean tryCompensate(NodePage parent, int childIndex, NodePage child, int key, int index) {
-        // Check the right sibling
+    private boolean compensate(NodePage parent, int childIndex, NodePage child, int key) {
+        //check right sibling
         if (childIndex < parent.getChildrenPageIds().size() - 1) {
+            //check if key goes into parent
+            if(key > child.getKeys().get(child.getKeyCount() - 1)){
+                return false;
+            }
             NodePage rightSibling = loadPage(parent.getChildrenPageIds().get(childIndex + 1)); //childIndex + 1 is the right sibling
             if (rightSibling.getKeyCount() < rightSibling.getMaxKeys()) {
                 // Redistribute keys to right sibling
@@ -159,108 +168,51 @@ public class BTree {
                 rightSibling.incrementKeyCount(1);
                 parent.incrementKeyCount(-1);
                 savePage(rightSibling);
-
+                //update parent and child
                 /*if(key > child.getKeys().get(child.getKeyCount() - 1)) { //key is greater than the last key in child
                     parent.getKeys().add(childIndex,key);
                     parent.getIndexes().add(childIndex, index);
                     parent.incrementKeyCount(1);
-                    insertFurther = false;
-                } else*/ if(key < child.getKeys().get(child.getKeyCount() - 1)){ //key belongs in child
+                } else if(key < child.getKeys().get(child.getKeyCount() - 1)) {*/
                     parent.getKeys().add(childIndex, child.removeKey(child.getKeyCount() - 1));
                     parent.getIndexes().add(childIndex, child.removeIndex(child.getKeyCount() - 1));
                     child.incrementKeyCount(-1);
                     parent.incrementKeyCount(1);
-                    /*int i = child.getKeyCount() - 1;
-                    while (i >= 0 && key < child.getKeys().get(i)) {
-                        i--;
-                    }*/
-                    //i++;
-                    /*child.getKeys().add(i, key);
-                    child.getIndexes().add(i, index);
-                    child.incrementKeyCount(1);*/
-                    System.out.println(child.getKeys());
-                    savePage(child);
-                    savePage(parent);
-                    return true;
-                }
-                return false;
+                //}
+                //System.out.println(child.getKeys());
+                savePage(child);
+                savePage(parent);
+                return true;
             }
             return false;
         }
-        /*// Check the left sibling
         else if (childIndex > 0) {
+            if(key < child.getKeys().get(0)){
+                return false;
+            }
             NodePage leftSibling = loadPage(parent.getChildrenPageIds().get(childIndex - 1));
-            stats.incrementPagesRead();
             if (leftSibling.getKeyCount() < leftSibling.getMaxKeys()) {
                 // Redistribute keys to left sibling
-                leftSibling.getKeys().add(leftSibling.getKeyCount(), parent.getKeys().get(childIndex-1));
-                leftSibling.getIndexes().add(leftSibling.getKeyCount(), parent.getIndexes().get(childIndex-1));
+                leftSibling.getKeys().add(leftSibling.getKeyCount(), parent.getKeys().remove(childIndex - 1));
+                leftSibling.getIndexes().add(leftSibling.getKeyCount(), parent.getIndexes().remove(childIndex - 1));
                 leftSibling.incrementKeyCount(1);
+                parent.incrementKeyCount(-1);
                 savePage(leftSibling);
-
-                if(key < child.getKeys().get(0)) {
-                    parent.getKeys().add(childIndex,key);
-                    parent.getIndexes().set(childIndex, index);
-                    parent.incrementKeyCount(1);
-                    System.out.println("Key " + key + " inserted at page " + parent.getPageId());
-                } else {
-                    parent.getKeys().set(childIndex-1, child.removeKey(0));
-                    parent.getIndexes().set(childIndex-1, child.removeIndex(0));
-                    child.incrementKeyCount(-1);
-                    int i = child.getKeyCount() - 1;
-                    while (i >= 0 && key < child.getKeys().get(i)) {
-                        i--;
-                    }
-                    i++;
-                    child.getKeys().add(i, key);
-                    child.getIndexes().add(i, index);
-                    child.incrementKeyCount(1);
-                    System.out.println("Key " + key + " inserted at page " + child.getPageId());
-                }
+                //update parent and child
+                parent.getKeys().add(childIndex - 1, child.removeKey(0));
+                parent.getIndexes().add(childIndex - 1, child.removeIndex(0));
+                child.incrementKeyCount(-1);
+                parent.incrementKeyCount(1);
+                //System.out.println("Key " + key + " inserted at page " + child.getPageId());
                 savePage(child);
                 savePage(parent);
 
-                stats.incrementPagesSaved(3);
                 return true;
             }
-        }*/
-
-        return false; // Redistribution not possible
+            return false;
+        }
+        return false;
     }
-
-
-    /*private void splitChild(NodePage parent, int index, NodePage fullChild) {
-        NodePage newChild = new NodePage(nextPageId++, fullChild.isLeaf(), d);
-
-        for (int j = d+1; j < 2*d; j++) {
-            newChild.getKeys().add(fullChild.getKeys().remove(j));
-            newChild.getIndexes().add(fullChild.getIndexes().remove(j));
-        }
-        newChild.setKeyCount(d-1);
-
-        if (!fullChild.isLeaf()) {
-            int fullIdsSize = fullChild.getChildrenPageIds().size();
-            for (int j = d+1; j < fullIdsSize; j++) {
-                System.out.println("fullChild.getChildrenPageIds().size(): " + fullChild.getChildrenPageIds().size());
-                System.out.println("(d+1): " + (d+1));
-                System.out.println("fullChild.getChildrenPageIds(): " + fullChild.getChildrenPageIds());
-                System.out.println("fullChild: " + fullChild.getPageId());;
-                newChild.getChildrenPageIds().add(fullChild.getChildrenPageIds().remove(d+1)); //todo d+1???
-            }
-        }
-
-        // move middle key to parent
-        parent.getKeys().add(index, fullChild.getKeys().remove(d));
-        parent.getIndexes().add(index, fullChild.getIndexes().remove(d));
-        parent.getChildrenPageIds().add(index + 1, newChild.getPageId());
-        parent.incrementKeyCount(1);
-
-        fullChild.setKeyCount(d);
-
-        savePage(parent);
-        savePage(fullChild);
-        savePage(newChild);
-    }*/
 
     public void printTree() {
         printNode(root, "");

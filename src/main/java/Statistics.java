@@ -9,13 +9,8 @@ public class Statistics {
         this.pagesReadForSearch = 0;
     }
 
-    public int getPagesSaved() { return pagesSaved; }
     public void incrementPagesSaved(int i) { this.pagesSaved+=i; }
-
-    public int getPagesRead() { return pagesRead; }
     public void incrementPagesRead() { this.pagesRead++; }
-
-    public int getPagesReadForSearch() { return pagesReadForSearch; }
     public void incrementPagesReadForSearch(int i) { this.pagesReadForSearch+=i; }
 
     public void reset() {

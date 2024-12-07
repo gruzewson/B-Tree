@@ -2,8 +2,6 @@ package data;
 
 import javax.swing.*;
 import java.io.*;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 
@@ -156,7 +154,7 @@ public class DataManager {
                 v1 = options[random.nextInt(options.length)];
                 v2 = options[random.nextInt(options.length)];
                 v3 = options[random.nextInt(options.length)];
-                key = random.nextInt(200); //todo
+                key = random.nextInt(Integer.MAX_VALUE);
                 writer.write(String.format("insert %.1f %.1f %.1f %d%n", v1, v2, v3, key));
             }
         } catch (IOException e) {
