@@ -67,17 +67,18 @@ public class BTree {
             return -1;
         } else {
             NodePage child = loadPage(Page.getChildrenPageIds().get(i));
+            System.out.println("loading page: " + child.getPageId());
             stats.incrementPagesReadForSearch(1);
             return search(child, key, print);
         }
     }
 
     public void insert(int key, int index, boolean print) {
-        if(search(root, key, false) != -1) {
+        /*if(search(root, key, false) != -1) {
             if(print)
                 System.out.println("Record with key " + key + " already exists");
             return;
-        }
+        }*/
 
         NodePage root = this.root;
         if (root.isFull()) {
@@ -121,7 +122,12 @@ public class BTree {
                 }
             }
             //System.out.println("loading page: " + Page.getChildrenPageIds().get(i));
-            insertNonFull(loadPage(Page.getChildrenPageIds().get(i)), key, index);
+            if(child.getPageId() == Page.getChildrenPageIds().get(i)) {
+                insertNonFull(child, key, index);
+            }
+            else {
+                insertNonFull(loadPage(Page.getChildrenPageIds().get(i)), key, index);
+            }
         }
     }
 
@@ -136,7 +142,7 @@ public class BTree {
 
         if (!fullChild.isLeaf()) {
             for (int j = 0; j < d; j++) {
-                newChild.getChildrenPageIds().add(fullChild.getChildrenPageIds().remove(d+1));
+                newChild.getChildrenPageIds().add(fullChild.getChildrenPageIds().remove(d));
             }
         }
 
@@ -222,9 +228,15 @@ public class BTree {
         StringBuilder sb = new StringBuilder();
         sb.append(prefix);
         sb.append("Page ").append(page.getPageId()).append(": ").append(page.isLeaf() ? "leaf" : "internal")
-                .append(", ").append("keys[").append(page.getKeyCount()).append("]: ");
+                .append(", ").append("keys[").append(page.getKeyCount()).append("]: {");
         for (int i = 0; i < page.getKeyCount(); i++) {
-            sb.append(page.getKeys().get(i)).append(" > ").append(page.getIndexes().get(i)).append(", ");
+            //sb.append(page.getKeys().get(i)).append(" > ").append(page.getIndexes().get(i)).append(", ");
+            if(i == page.getKeyCount() - 1) {
+                sb.append(page.getKeys().get(i)).append("}");
+            }
+            else {
+                sb.append(page.getKeys().get(i)).append(", ");
+            }
         }
         System.out.println(sb);
         for(int i = 0; i < page.getChildrenPageIds().size(); i++) {
