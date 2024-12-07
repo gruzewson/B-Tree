@@ -4,7 +4,7 @@ import java.io.IOException;
 public class Main {
     public static void main(String[] args) throws IOException {
         int d = 2;
-        int recordNum = 2;
+        int recordNum = 1000;
         int bufferSize = 10;
         String commandsFile = "src/main/java/data/commands.txt";
 
@@ -16,7 +16,7 @@ public class Main {
             case "commands" -> manager.commandsMode(commandsFile, true);
 
             case "mixed" -> {
-                manager.commandsMode(commandsFile, false);
+                manager.commandsMode(commandsFile, true);
                 manager.interactiveMode(false);
             }
             default -> System.out.println("Invalid mode");

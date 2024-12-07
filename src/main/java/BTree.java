@@ -67,7 +67,7 @@ public class BTree {
             return -1;
         } else {
             NodePage child = loadPage(Page.getChildrenPageIds().get(i));
-            System.out.println("loading page: " + child.getPageId());
+            //System.out.println("loading page: " + child.getPageId());
             stats.incrementPagesReadForSearch(1);
             return search(child, key, print);
         }
