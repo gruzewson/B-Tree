@@ -9,14 +9,17 @@ public class BTree {
     private NodePage root;
     private final Statistics stats;
     DataManager dataManager;
+    int bufferSize;
+    //boolean insertFurther = true;
 
-    public BTree(int d, int recordNum) {
+    public BTree(int d, int recordNum, int bufferSize) {
         this.d = d;
         this.nextPageId = 0;
         this.root = new NodePage(nextPageId++, true, d);
         savePage(root);
         this.stats = new Statistics();
         this.dataManager = new DataManager(recordNum);
+        this.bufferSize = bufferSize;
     }
 
     public NodePage getRoot() {
@@ -33,10 +36,9 @@ public class BTree {
             return;
         }
 
-        RecordBuffer buffer = new RecordBuffer(1); //todo: change buffer size, add read buffers
+        RecordBuffer buffer = new RecordBuffer(1);
         buffer.addRecord(record);
         buffer.saveBuffer("src/main/java/data/data.txt");
-        stats.incrementRecordBuffersSaved();
         insert(record.getKey(), dataManager.getRecordNum(), true);
     }
 
@@ -45,7 +47,7 @@ public class BTree {
         if (index == -1) {
             return null;
         }
-        return dataManager.getRecord(index);
+        return dataManager.getRecord(index, bufferSize);
     }
 
     private int search(NodePage Page, int key, boolean print) {
@@ -83,114 +85,40 @@ public class BTree {
             newRoot.addChildPageId(root.getPageId());
             splitChild(newRoot, 0, root);
             this.root = newRoot;
+            savePage(newRoot);
         }
         insertNonFull(this.root, key, index);
     }
 
-    private void insertNonFull(NodePage page, int key, int index) {
-        if (page.isLeaf()) {
-            // Insert key in the leaf
-            int i = page.getKeyCount() - 1;
-            while (i >= 0 && key < page.getKeys().get(i)) {
-                i--;
-            }
-            i++;
-            page.getKeys().add(i, key);
-            page.getIndexes().add(i, index);
-            page.incrementKeyCount(1);
-            savePage(page);
-        } else {
-            // Traverse to the proper child
-            int i = page.getKeyCount() - 1;
-            while (i >= 0 && key < page.getKeys().get(i)) {
-                i--;
-            }
-            i++;
-            NodePage child = loadPage(page.getChildrenPageIds().get(i));
+    private void insertNonFull(NodePage Page, int key, int index) {
+        if (Page.isLeaf()) {
 
-            // Check if the child is full
+            int i = Page.getKeyCount() - 1;
+            while (i >= 0 && key < Page.getKeys().get(i)) {
+                i--;
+            }
+            i++;
+            Page.getKeys().add(i, key);
+            Page.getIndexes().add(i, index);
+            Page.incrementKeyCount(1);
+            savePage(Page);
+        } else {
+            int i = Page.getKeyCount() - 1;
+            while (i >= 0 && key < Page.getKeys().get(i)) {
+                i--;
+            }
+            i++;
+            NodePage child = loadPage(Page.getChildrenPageIds().get(i));
             if (child.getKeyCount() == child.getMaxKeys()) {
-                // Attempt to compensate with siblings before splitting
-                if (!tryCompensate(page, i, child, key, index)) {
-                    // Split the child
-                    splitChild(page, i, child);
-                    if (key > page.getKeys().get(i)) {
-                        i++;
-                    }
-                }
-                else {
-                    return;
+                splitChild(Page, i, child);
+                if (key > Page.getKeys().get(i)) {
+                    i++;
                 }
             }
-
-            // Continue insertion in the appropriate child
-            insertNonFull(child, key, index);
+            System.out.println("loading page: " + Page.getChildrenPageIds().get(i));
+            insertNonFull(loadPage(Page.getChildrenPageIds().get(i)), key, index);
         }
     }
-
-    private boolean tryCompensate(NodePage parent, int childIndex, NodePage child, int key, int index) {
-        boolean isRightSibling = childIndex < parent.getChildrenPageIds().size() - 1;
-        boolean isLeftSibling = childIndex > 0;
-
-        if (isRightSibling) {
-            NodePage rightSibling = loadPage(parent.getChildrenPageIds().get(childIndex + 1));
-            if (redistributeKeys(parent, child, rightSibling, childIndex, key, index, true)) {
-                return true;
-            }
-        }
-
-        if (isLeftSibling) {
-            NodePage leftSibling = loadPage(parent.getChildrenPageIds().get(childIndex - 1));
-            if (redistributeKeys(parent, child, leftSibling, childIndex - 1, key, index, false)) {
-                return true;
-            }
-        }
-
-        return false; // Redistribution not possible
-    }
-
-    private boolean redistributeKeys(NodePage parent, NodePage child, NodePage sibling,
-                                     int parentKeyIndex, int key, int index, boolean isRightSibling) {
-        if (sibling.getKeyCount() >= sibling.getMaxKeys()) {
-            return false;
-        }
-
-        if (isRightSibling) {
-            // Move parent key to right sibling
-            sibling.getKeys().add(0, parent.getKeys().get(parentKeyIndex));
-            sibling.getIndexes().add(0, parent.getIndexes().get(parentKeyIndex));
-        } else {
-            // Move parent key to left sibling
-            sibling.getKeys().add(sibling.getKeyCount(), parent.getKeys().get(parentKeyIndex));
-            sibling.getIndexes().add(sibling.getKeyCount(), parent.getIndexes().get(parentKeyIndex));
-        }
-        sibling.incrementKeyCount(1);
-
-        // Update parent key and redistribute in the child if needed
-        if (isRightSibling && key > child.getKeys().get(child.getKeyCount() - 1) ||
-                !isRightSibling && key < child.getKeys().get(0)) {
-            parent.getKeys().set(parentKeyIndex, key);
-            parent.getIndexes().set(parentKeyIndex, index);
-        } else {
-            int removedKeyIndex = isRightSibling ? child.getKeyCount() - 1 : 0;
-            parent.getKeys().set(parentKeyIndex, child.removeKey(removedKeyIndex));
-            parent.getIndexes().set(parentKeyIndex, child.removeIndex(removedKeyIndex));
-            child.incrementKeyCount(-1);
-
-            int i = child.getKeyCount() - 1;
-            while (i >= 0 && key < child.getKeys().get(i)) {
-                i--;
-            }
-            child.getKeys().add(i + 1, key);
-            child.getIndexes().add(i + 1, index);
-            child.incrementKeyCount(1);
-        }
-        savePage(child);
-        savePage(sibling);
-        savePage(parent);
-        return true;
-    }
-
 
     private void splitChild(NodePage parent, int index, NodePage fullChild) {
         NodePage newChild = new NodePage(nextPageId++, fullChild.isLeaf(), d);
@@ -219,6 +147,120 @@ public class BTree {
         savePage(fullChild);
         savePage(newChild);
     }
+
+    private boolean tryCompensate(NodePage parent, int childIndex, NodePage child, int key, int index) {
+        // Check the right sibling
+        if (childIndex < parent.getChildrenPageIds().size() - 1) {
+            NodePage rightSibling = loadPage(parent.getChildrenPageIds().get(childIndex + 1)); //childIndex + 1 is the right sibling
+            if (rightSibling.getKeyCount() < rightSibling.getMaxKeys()) {
+                // Redistribute keys to right sibling
+                rightSibling.getKeys().add(0, parent.getKeys().remove(childIndex));
+                rightSibling.getIndexes().add(0, parent.getIndexes().remove(childIndex));
+                rightSibling.incrementKeyCount(1);
+                parent.incrementKeyCount(-1);
+                savePage(rightSibling);
+
+                /*if(key > child.getKeys().get(child.getKeyCount() - 1)) { //key is greater than the last key in child
+                    parent.getKeys().add(childIndex,key);
+                    parent.getIndexes().add(childIndex, index);
+                    parent.incrementKeyCount(1);
+                    insertFurther = false;
+                } else*/ if(key < child.getKeys().get(child.getKeyCount() - 1)){ //key belongs in child
+                    parent.getKeys().add(childIndex, child.removeKey(child.getKeyCount() - 1));
+                    parent.getIndexes().add(childIndex, child.removeIndex(child.getKeyCount() - 1));
+                    child.incrementKeyCount(-1);
+                    parent.incrementKeyCount(1);
+                    /*int i = child.getKeyCount() - 1;
+                    while (i >= 0 && key < child.getKeys().get(i)) {
+                        i--;
+                    }*/
+                    //i++;
+                    /*child.getKeys().add(i, key);
+                    child.getIndexes().add(i, index);
+                    child.incrementKeyCount(1);*/
+                    System.out.println(child.getKeys());
+                    savePage(child);
+                    savePage(parent);
+                    return true;
+                }
+                return false;
+            }
+            return false;
+        }
+        /*// Check the left sibling
+        else if (childIndex > 0) {
+            NodePage leftSibling = loadPage(parent.getChildrenPageIds().get(childIndex - 1));
+            stats.incrementPagesRead();
+            if (leftSibling.getKeyCount() < leftSibling.getMaxKeys()) {
+                // Redistribute keys to left sibling
+                leftSibling.getKeys().add(leftSibling.getKeyCount(), parent.getKeys().get(childIndex-1));
+                leftSibling.getIndexes().add(leftSibling.getKeyCount(), parent.getIndexes().get(childIndex-1));
+                leftSibling.incrementKeyCount(1);
+                savePage(leftSibling);
+
+                if(key < child.getKeys().get(0)) {
+                    parent.getKeys().add(childIndex,key);
+                    parent.getIndexes().set(childIndex, index);
+                    parent.incrementKeyCount(1);
+                    System.out.println("Key " + key + " inserted at page " + parent.getPageId());
+                } else {
+                    parent.getKeys().set(childIndex-1, child.removeKey(0));
+                    parent.getIndexes().set(childIndex-1, child.removeIndex(0));
+                    child.incrementKeyCount(-1);
+                    int i = child.getKeyCount() - 1;
+                    while (i >= 0 && key < child.getKeys().get(i)) {
+                        i--;
+                    }
+                    i++;
+                    child.getKeys().add(i, key);
+                    child.getIndexes().add(i, index);
+                    child.incrementKeyCount(1);
+                    System.out.println("Key " + key + " inserted at page " + child.getPageId());
+                }
+                savePage(child);
+                savePage(parent);
+
+                stats.incrementPagesSaved(3);
+                return true;
+            }
+        }*/
+
+        return false; // Redistribution not possible
+    }
+
+
+    /*private void splitChild(NodePage parent, int index, NodePage fullChild) {
+        NodePage newChild = new NodePage(nextPageId++, fullChild.isLeaf(), d);
+
+        for (int j = d+1; j < 2*d; j++) {
+            newChild.getKeys().add(fullChild.getKeys().remove(j));
+            newChild.getIndexes().add(fullChild.getIndexes().remove(j));
+        }
+        newChild.setKeyCount(d-1);
+
+        if (!fullChild.isLeaf()) {
+            int fullIdsSize = fullChild.getChildrenPageIds().size();
+            for (int j = d+1; j < fullIdsSize; j++) {
+                System.out.println("fullChild.getChildrenPageIds().size(): " + fullChild.getChildrenPageIds().size());
+                System.out.println("(d+1): " + (d+1));
+                System.out.println("fullChild.getChildrenPageIds(): " + fullChild.getChildrenPageIds());
+                System.out.println("fullChild: " + fullChild.getPageId());;
+                newChild.getChildrenPageIds().add(fullChild.getChildrenPageIds().remove(d+1)); //todo d+1???
+            }
+        }
+
+        // move middle key to parent
+        parent.getKeys().add(index, fullChild.getKeys().remove(d));
+        parent.getIndexes().add(index, fullChild.getIndexes().remove(d));
+        parent.getChildrenPageIds().add(index + 1, newChild.getPageId());
+        parent.incrementKeyCount(1);
+
+        fullChild.setKeyCount(d);
+
+        savePage(parent);
+        savePage(fullChild);
+        savePage(newChild);
+    }*/
 
     public void printTree() {
         printNode(root, "");
@@ -270,7 +312,9 @@ public class BTree {
     public void savePage(NodePage page) {
         try {
             String pagesPath = "src/main/java/pages";
-            stats.incrementPagesSaved(1);
+            if (stats != null) {
+                stats.incrementPagesSaved(1);
+            }
             page.saveToFile(pagesPath + "/Page" + page.getPageId() + ".txt");
         } catch (IOException e) {
             throw new RuntimeException("Error saving Page: " + e.getMessage());

@@ -89,7 +89,6 @@ public class DataManager {
         }
     }
 
-    //todo use buffers here for everything
     public void getData(String[] args, String fileName){
         String mode;
         if (args.length < 1) {
@@ -116,30 +115,19 @@ public class DataManager {
         }
     }
 
-    public Record getRecord(int index){
-        try (BufferedReader reader = new BufferedReader(new FileReader("src/main/java/data/data.txt"))) {
-            String line;
-            for (int i = 0; i < index-1; i++) {
-                reader.readLine();
-            }
-            line = reader.readLine();
-            if (line == null) {
-                return null;
-            }
-            String[] parts = line.split(" ");
-            if (parts.length < 2) {
-                throw new IllegalArgumentException("Invalid record format. Must contain at least one number and a key.");
-            }
-            float v1 = Float.parseFloat(parts[0]);
-            float v2 = Float.parseFloat(parts[1]);
-            float v3 = Float.parseFloat(parts[2]);
-            int key = Integer.parseInt(parts[3]);
-            List<Float> values = Arrays.asList(v1, v2, v3);
-            return new Record(values, key);
-        } catch (IOException e) {
-            throw new RuntimeException("Error reading file: " + e.getMessage(), e);
+    public Record getRecord(int index, int bufferSize) {
+        RecordBuffer buffer = new RecordBuffer(bufferSize);
+
+        int startLine = index - (index % bufferSize);
+        buffer.readRecords("src/main/java/data/data.txt", startLine);
+
+        if (index < startLine || index >= startLine + bufferSize) {
+            throw new IndexOutOfBoundsException("Index out of bounds for the current buffer.");
         }
+
+        return buffer.getRecord(index - startLine);
     }
+
 
     public int getRecordNum() {
         File file = new File("src/main/java/data/data.txt");
@@ -168,7 +156,7 @@ public class DataManager {
                 v1 = options[random.nextInt(options.length)];
                 v2 = options[random.nextInt(options.length)];
                 v3 = options[random.nextInt(options.length)];
-                key = random.nextInt(Integer.MAX_VALUE);
+                key = random.nextInt(200); //todo
                 writer.write(String.format("insert %.1f %.1f %.1f %d%n", v1, v2, v3, key));
             }
         } catch (IOException e) {
