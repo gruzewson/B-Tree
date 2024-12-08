@@ -4,8 +4,8 @@ import java.io.IOException;
 public class Main {
     public static void main(String[] args) throws IOException {
         int d = 2;
-        int recordNum = 1000;
-        int bufferSize = 10;
+        int recordNum = 100;
+        int bufferSize = 50;
         String commandsFile = "src/main/java/data/commands.txt";
 
         BTree btree = new BTree(d, recordNum, bufferSize);
@@ -19,7 +19,7 @@ public class Main {
                 manager.commandsMode(commandsFile, true);
                 manager.interactiveMode(false);
             }
-            default -> System.out.println("Invalid mode");
+            default -> manager.interactiveMode(true);
         }
 
     }

@@ -20,7 +20,7 @@ public class Statistics {
     }
 
     public void printStatistics() {
-        System.out.println("\nPages read " + pagesRead + " (for search " + pagesReadForSearch + ")");
+        System.out.println("\nPages read " + pagesRead);
         System.out.println("Pages saved " + pagesSaved);
     }
 }

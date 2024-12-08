@@ -10,12 +10,14 @@ public class BTree {
     private final Statistics stats;
     DataManager dataManager;
     int bufferSize;
-    //boolean insertFurther = true;
+    int height = 0;
+    int duplicates = 0;
 
     public BTree(int d, int recordNum, int bufferSize) {
         this.d = d;
         this.nextPageId = 0;
         this.root = new NodePage(nextPageId++, true, d);
+        this.height +=1;
         savePage(root);
         this.stats = new Statistics();
         this.dataManager = new DataManager(recordNum);
@@ -31,10 +33,10 @@ public class BTree {
     }
 
     public void insertRecord(Record record) {
-        if(search(root, record.getKey(), false) != -1) {
+        /*if(search(root, record.getKey(), false) != -1) {
             System.out.println("Record with key " + record.getKey() + " already exists");
             return;
-        }
+        }*/
 
         RecordBuffer buffer = new RecordBuffer(1);
         buffer.addRecord(record);
@@ -74,11 +76,6 @@ public class BTree {
     }
 
     public void insert(int key, int index, boolean print) {
-        /*if(search(root, key, false) != -1) {
-            if(print)
-                System.out.println("Record with key " + key + " already exists");
-            return;
-        }*/
 
         NodePage root = this.root;
         if (root.isFull()) {
@@ -86,18 +83,23 @@ public class BTree {
             newRoot.addChildPageId(root.getPageId());
             splitChild(newRoot, 0, root);
             this.root = newRoot;
-            savePage(newRoot);
+            height +=1;
         }
         insertNonFull(this.root, key, index);
     }
 
     private void insertNonFull(NodePage Page, int key, int index) {
-        if (Page.isLeaf()){// && Page.getKeyCount() < Page.getMaxKeys()) {
-            int i = Page.getKeyCount() - 1;
-            while (i >= 0 && key < Page.getKeys().get(i)) {
-                i--;
+        if (Page.isLeaf()) {
+            int i = 0;
+            while (i < Page.getKeyCount() && key > Page.getKeys().get(i)) {
+                i++;
             }
-            i++;
+
+            if (i < Page.getKeyCount() && key == Page.getKeys().get(i)) {
+                System.out.println("Record with key " + key + " already exists");
+                duplicates++;
+                return;
+            }
             Page.getKeys().add(i, key);
             Page.getIndexes().add(i, index);
             Page.incrementKeyCount(1);
@@ -175,17 +177,10 @@ public class BTree {
                 parent.incrementKeyCount(-1);
                 savePage(rightSibling);
                 //update parent and child
-                /*if(key > child.getKeys().get(child.getKeyCount() - 1)) { //key is greater than the last key in child
-                    parent.getKeys().add(childIndex,key);
-                    parent.getIndexes().add(childIndex, index);
-                    parent.incrementKeyCount(1);
-                } else if(key < child.getKeys().get(child.getKeyCount() - 1)) {*/
-                    parent.getKeys().add(childIndex, child.removeKey(child.getKeyCount() - 1));
-                    parent.getIndexes().add(childIndex, child.removeIndex(child.getKeyCount() - 1));
-                    child.incrementKeyCount(-1);
-                    parent.incrementKeyCount(1);
-                //}
-                //System.out.println(child.getKeys());
+                parent.getKeys().add(childIndex, child.removeKey(child.getKeyCount() - 1));
+                parent.getIndexes().add(childIndex, child.removeIndex(child.getKeyCount() - 1));
+                child.incrementKeyCount(-1);
+                parent.incrementKeyCount(1);
                 savePage(child);
                 savePage(parent);
                 return true;
@@ -209,10 +204,8 @@ public class BTree {
                 parent.getIndexes().add(childIndex - 1, child.removeIndex(0));
                 child.incrementKeyCount(-1);
                 parent.incrementKeyCount(1);
-                //System.out.println("Key " + key + " inserted at page " + child.getPageId());
                 savePage(child);
                 savePage(parent);
-
                 return true;
             }
             return false;
@@ -284,4 +277,9 @@ public class BTree {
             throw new RuntimeException("Error saving Page: " + e.getMessage());
         }
     }
+
+    public int getHeight() {
+        return height;
+    }
+
 }
